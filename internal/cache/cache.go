@@ -12,7 +12,7 @@ type baseCache struct {
 
 var Cache *baseCache
 
-func InitCache(ctx context.Context) error {
+func InitCache(ctx context.Context) (*redis.Client, error) {
 	//TODO TLS Connection
 	conn := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
@@ -23,7 +23,7 @@ func InitCache(ctx context.Context) error {
 	res := conn.Ping(ctx)
 
 	if err := res.Err(); err != nil {
-		return err
+		return nil, err
 	}
 
 	Cache = &baseCache{
@@ -31,5 +31,5 @@ func InitCache(ctx context.Context) error {
 		ctx:   ctx,
 	}
 
-	return nil
+	return conn, nil
 }

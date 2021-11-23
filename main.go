@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"github.com/eliassebastian/gor6-cron/internal/cache"
+	"github.com/eliassebastian/gor6-cron/internal/ubisoft"
 	"log"
 	"os"
 	"os/signal"
-
-	"github.com/eliassebastian/gor6-cron/internal/cache"
 )
 
 func main() {
@@ -18,11 +18,12 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	//connect to redis
-	err := cache.InitCache(ctx)
-	if err != nil {
+	conn, err := cache.InitCache(ctx)
+	if conn != nil || err != nil {
 		log.Println(err)
 	}
 	//create initial cron job
+	client, _ := ubisoft.EstablishConn()
 
 	//set up scheduler
 	osCall := <-c
