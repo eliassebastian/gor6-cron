@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/eliassebastian/gor6-cron/internal/cache"
 	"github.com/eliassebastian/gor6-cron/internal/ubisoft"
 	"log"
@@ -24,6 +25,7 @@ func main() {
 	}
 	//create initial cron job
 	client, _ := ubisoft.EstablishConn()
+	fmt.Println(client)
 
 	//set up scheduler
 	osCall := <-c

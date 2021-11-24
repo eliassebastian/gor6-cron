@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/eliassebastian/gor6-cron/internal/config"
+	"github.com/eliassebastian/gor6-cron/internal/models"
 	"log"
 	"net/http"
 	"time"
@@ -12,22 +13,11 @@ import (
 
 const (
 	SESSIONSURL = "https://public-ubiservices.ubi.com/v3/profiles/sessions"
-	USERNAME    = "test"
-	PASS        = "test"
+	USERNAME    = "gor6client@gmail.com"
+	PASS        = "GoClientR6!2021"
 )
 
-type UbisoftInfo struct {
-	//client     		*http.Client
-	maxRetries    int8
-	sessionStart  time.Time
-	sessionPeriod time.Duration
-	sessionExpiry time.Time
-	sessionKey    string
-	spaceID       string
-	sessionTicket string
-}
-
-var Ubisoft *UbisoftInfo
+var Ubisoft *models.UbisoftSession
 
 func createClient() *http.Client {
 
@@ -66,25 +56,31 @@ func EstablishConn() (*http.Client, error) {
 	}
 
 	res, err := client.Do(req)
-
-	if err != nil {
-		log.Println(res, err)
-	}
-
-	log.Println("SUCCESS:  ", res.StatusCode, res, err, res.Body)
-
 	defer res.Body.Close()
 
-	var result map[string]interface{}
+	if err != nil {
+		//TODO Error Handling
+		return nil, err
+	}
 
-	err2 := json.NewDecoder(res.Body).Decode(&result)
+	if res.StatusCode == 400 || res.StatusCode == 401 {
+		return nil, nil
+	}
 
+	Ubisoft = &models.UbisoftSession{
+		Retries:       0,
+		MaxRetries:    5,
+		RetryTime:     10,
+		SessionStart:  time.Now().UTC(),
+		SessionPeriod: 175,
+	}
+
+	err2 := json.NewDecoder(res.Body).Decode(Ubisoft)
 	if err2 != nil {
 		log.Fatalln(err)
 	}
 
-	fmt.Println(result)
-
+	fmt.Println(Ubisoft)
 	return client, nil
 }
 
