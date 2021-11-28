@@ -4,8 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/eliassebastian/gor6-cron/internal/config"
-	"github.com/eliassebastian/gor6-cron/internal/models"
 	"log"
 	"net/http"
 	"time"
@@ -17,17 +15,23 @@ const (
 	PASS        = "GoClientR6!2021"
 )
 
-var Ubisoft *models.UbisoftSession
+type UbisoftConfig struct {
+	client           *http.Client
+	appId            string
+	appAuthorisation string
+	UbisoftSession
+}
 
-func createClient() *http.Client {
-
-	if config.Config != nil {
-		return config.Config.Client
-	}
-
-	return &http.Client{
-		Timeout: time.Second * 10,
-	}
+type UbisoftSession struct {
+	Retries       uint8
+	MaxRetries    uint8
+	RetryTime     uint8
+	SessionStart  time.Time
+	SessionPeriod uint16
+	SessionExpiry time.Time `json:"expiration"`
+	SessionKey    string    `json:"sessionKey"`
+	SpaceID       string    `json:"spaceId"`
+	SessionTicket string    `json:"ticket"`
 }
 
 //TODO Accept Different User Details
@@ -35,14 +39,17 @@ func basicToken() string {
 	return fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", USERNAME, PASS))))
 }
 
-func Connect() {
-
+func CreateConfig() *UbisoftConfig {
+	return &UbisoftConfig{
+		client: &http.Client{
+			Timeout: time.Second * 10,
+		},
+		appId:            "39baebad-39e5-4552-8c25-2c9b919064e2",
+		appAuthorisation: basicToken(),
+	}
 }
 
-func EstablishConn() (*http.Client, error) {
-
-	client := createClient()
-
+func (c *UbisoftConfig) Connect() error {
 	req, err := http.NewRequest(http.MethodPost, SESSIONSURL, nil)
 	if err != nil {
 		log.Println(req, err)
@@ -50,24 +57,24 @@ func EstablishConn() (*http.Client, error) {
 
 	req.Header = http.Header{
 		"Content-Type":  []string{"application/json"},
-		"Ubi-AppId":     []string{"39baebad-39e5-4552-8c25-2c9b919064e2"},
-		"Authorization": []string{basicToken()},
+		"Ubi-AppId":     []string{c.appId},
+		"Authorization": []string{c.appAuthorisation},
 		"Connection":    []string{"keep-alive"},
 	}
 
-	res, err := client.Do(req)
+	res, errhttp := c.client.Do(req)
 	defer res.Body.Close()
 
-	if err != nil {
-		//TODO Error Handling
-		return nil, err
+	if errhttp != nil {
+		return errhttp
 	}
 
 	if res.StatusCode == 400 || res.StatusCode == 401 {
-		return nil, nil
+		//TODO Retry Connection
+		return nil
 	}
 
-	Ubisoft = &models.UbisoftSession{
+	c.UbisoftSession = UbisoftSession{
 		Retries:       0,
 		MaxRetries:    5,
 		RetryTime:     10,
@@ -75,15 +82,11 @@ func EstablishConn() (*http.Client, error) {
 		SessionPeriod: 175,
 	}
 
-	err2 := json.NewDecoder(res.Body).Decode(Ubisoft)
-	if err2 != nil {
+	errdec := json.NewDecoder(res.Body).Decode(c.UbisoftSession)
+	if errdec != nil {
 		log.Fatalln(err)
 	}
 
-	fmt.Println(Ubisoft)
-	return client, nil
-}
-
-func refreshConn() error {
+	fmt.Println(c)
 	return nil
 }
