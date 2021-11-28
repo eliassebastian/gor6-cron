@@ -36,7 +36,6 @@ func run() (<-chan error, error) {
 	}
 
 	client := ubisoft.CreateConfig()
-
 	scheduler := gocron.NewScheduler(time.UTC)
 
 	srv := &Server{
@@ -62,6 +61,7 @@ func run() (<-chan error, error) {
 		defer func() {
 			producer.Producer.Close()
 			scheduler.Stop()
+			client.Stop()
 
 			stop()
 			cancel()
@@ -95,7 +95,7 @@ type Server struct {
 func (s *Server) ListenAndServe() error {
 	log.Println(":::::: ListenAndServer Func")
 
-	err := s.ubisoft.Connect()
+	err := s.ubisoft.Connect(context.Background(), s.kafka)
 	if err != nil {
 		return errors.New("ubisoft connect failure")
 	}

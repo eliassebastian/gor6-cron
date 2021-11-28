@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -31,13 +32,7 @@ func NewKafkaConnection(ctx context.Context, topic string) (*Producer, error) {
 	}, nil
 }
 
-func NewProducer(conn *kafka.Conn, topic string) *Producer {
-	return &Producer{
-		Producer: conn,
-		Topic:    topic,
-	}
-}
+func (p *Producer) NewMessage(ctx context.Context, res *io.ReadCloser) error {
 
-func (p *Producer) GetProducer() *kafka.Conn {
-	return p.Producer
+	return nil
 }
