@@ -19,27 +19,20 @@ const (
 )
 
 type UbisoftConfig struct {
-	client           *http.Client
-	appId            string
-	appAuthorisation string
-	ctx              context.Context
-	cancel           context.CancelFunc
+	client *http.Client
+	appId  string
+	ctx    context.Context
+	cancel context.CancelFunc
 	UbisoftSession
 }
 
 type UbisoftSession struct {
-	Retries       uint8
-	MaxRetries    uint8
-	RetryTime     uint8
-	SessionStart  time.Time
-	SessionPeriod uint16
 	SessionExpiry time.Time `json:"expiration"`
 	SessionKey    string    `json:"sessionKey"`
 	SpaceID       string    `json:"spaceId"`
 	SessionTicket string    `json:"ticket"`
 }
 
-//TODO Accept Different User Details
 func basicToken() string {
 	return fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", USERNAME, PASS))))
 }
@@ -49,120 +42,81 @@ func CreateConfig() *UbisoftConfig {
 		client: &http.Client{
 			Timeout: time.Second * 10,
 		},
-		appId:            "39baebad-39e5-4552-8c25-2c9b919064e2",
-		appAuthorisation: basicToken(),
+		appId: "39baebad-39e5-4552-8c25-2c9b919064e2",
 	}
 }
 
-func (c *UbisoftConfig) Connect(ctx context.Context, pro *pubsub.Producer) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+func createSessionURL(ctx context.Context, url string, appId string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	if err != nil {
+		return nil, errors.New("error creating session url")
+	}
 
-	c.ctx = ctx
-	c.cancel = cancel
+	req.Header = http.Header{
+		"Content-Type":  []string{"application/json"},
+		"Ubi-AppId":     []string{appId},
+		"Authorization": []string{basicToken()},
+		"Connection":    []string{"keep-alive"},
+	}
 
-	var backoffSchedule = []time.Duration{
+	return req, nil
+}
+
+func fetchSessionData(ctx context.Context, client *http.Client, r *http.Request) *UbisoftSession {
+	bs := []time.Duration{
 		5 * time.Second,
 		10 * time.Second,
 		15 * time.Second,
 		30 * time.Second,
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, SESSIONSURL, nil)
-	if err != nil {
-		log.Println(req, err)
-	}
-
-	req.Header = http.Header{
-		"Content-Type":  []string{"application/json"},
-		"Ubi-AppId":     []string{c.appId},
-		"Authorization": []string{c.appAuthorisation},
-		"Connection":    []string{"keep-alive"},
-	}
-
-	for i, backoff := range backoffSchedule {
-		log.Println("Running Client Fetch Iteration:", i)
-		res, err := c.client.Do(req)
-		if err != nil {
-			log.Printf("Error with HTTP Response: %s", err)
-			cancel()
-			break
-		}
-
-		if res.StatusCode == 200 {
-			err := pro.NewMessage(ctx, &res.Body)
-			if err == nil {
-				cancel()
-				break
+	for i, b := range bs {
+		select {
+		case <-ctx.Done():
+			log.Println("Session Fetch Loop Context Done")
+			return nil
+		default:
+			log.Println("Running Client Fetch Iteration:", i)
+			res, err := client.Do(r)
+			if err != nil {
+				return nil
 			}
-		}
 
-		log.Println("Waiting on Client Fetch Iteration:", i+1)
-		res.Body.Close()
-		time.Sleep(backoff)
+			if res.StatusCode == 200 {
+				var u *UbisoftSession
+				err := json.NewDecoder(res.Body).Decode(&u)
+				if err == nil {
+					return u
+				}
+			}
+			log.Println("Retrying Session:", i+1)
+			res.Body.Close()
+			time.Sleep(b)
+		}
 	}
 
+	return nil
 }
 
-func connection(ctx context.Context, config *UbisoftConfig) {
-
-}
-
-func (c *UbisoftConfig) Connect2(ctx context.Context) error {
+func (c *UbisoftConfig) Connect(ctx context.Context, p *pubsub.Producer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, SESSIONSURL, nil)
+	c.ctx = ctx
+	c.cancel = cancel
+
+	req, err := createSessionURL(ctx, SESSIONSURL, c.appId)
 	if err != nil {
-		log.Println(req, err)
+		return err
 	}
 
-	req.Header = http.Header{
-		"Content-Type":  []string{"application/json"},
-		"Ubi-AppId":     []string{c.appId},
-		"Authorization": []string{c.appAuthorisation},
-		"Connection":    []string{"keep-alive"},
+	data := fetchSessionData(ctx, c.client, req)
+	if data == nil {
+		log.Println("Fetch Session Data returned Nil")
+		return errors.New("session fetched returned nil")
 	}
 
-	for i := 0; i < 6; i++ {
-		res, errhttp := c.client.Do(req)
-		if errhttp != nil {
-			return errhttp
-		}
-
-		if res.StatusCode == 200 {
-			pubsub.NewMessage(res.Body)
-
-		}
-
-		res.Body.Close()
-		time.Sleep(10 * time.Second)
-	}
-
-	res, errhttp := c.client.Do(req)
-	defer res.Body.Close()
-
-	if res.StatusCode == 200 {
-		c.UbisoftSession = UbisoftSession{
-			Retries:       0,
-			MaxRetries:    5,
-			RetryTime:     10,
-			SessionStart:  time.Now().UTC(),
-			SessionPeriod: 175,
-		}
-
-		errdec := json.NewDecoder(res.Body).Decode(c.UbisoftSession)
-		if errdec != nil {
-			log.Fatalln(err)
-		}
-
-		fmt.Println(c)
-		return nil
-	}
-
-	//TODO Retry Connection
-
-	return errors.New(fmt.Sprintf(""))
+	return nil
 }
 
 func (c *UbisoftConfig) Stop() {
