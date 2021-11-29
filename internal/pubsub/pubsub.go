@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
-	"github.com/eliassebastian/gor6-cron/internal/ubisoft"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -27,10 +26,15 @@ func NewKafkaWriter(topic string) *Producer {
 	}
 }
 
-func (p *Producer) NewMessage(ctx context.Context, us *ubisoft.UbisoftSession) error {
+/*func (p *Producer) Ping(ctx context.Context) {
+
+}*/
+
+func (p *Producer) NewMessage(ctx context.Context, us interface{}) error {
 	b := new(bytes.Buffer)
 	defer b.Reset()
-	gob.NewEncoder(b).Encode(*us)
+
+	gob.NewEncoder(b).Encode(us)
 
 	err := p.WriteMessages(ctx, kafka.Message{Value: b.Bytes()})
 	if err != nil {

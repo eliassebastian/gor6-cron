@@ -39,7 +39,6 @@ func run() (<-chan error, error) {
 		scheduler: scheduler,
 		ubisoft:   client,
 		doneC:     make(chan struct{}),
-		closeC:    make(chan struct{}),
 	}
 
 	errC := make(chan error, 1)
@@ -59,8 +58,8 @@ func run() (<-chan error, error) {
 			if err != nil {
 				log.Println("Failed to close Kafka Connection")
 			}
-			scheduler.Stop()
 			client.Stop()
+			scheduler.Stop()
 
 			stop()
 			cancel()
@@ -88,29 +87,28 @@ type Server struct {
 	scheduler *gocron.Scheduler
 	ubisoft   *ubisoft.UbisoftConfig
 	doneC     chan struct{}
-	closeC    chan struct{}
 }
 
 func (s *Server) ListenAndServe() error {
-	log.Println(":::::: ListenAndServer Func")
-
-	err := s.ubisoft.Connect(context.Background(), s.kafka)
-	if err != nil {
-		return errors.New("ubisoft connect failure")
-	}
-
+	log.Println(":::::: ListenAndServer")
 	//TODO initiate cron job every 2hr45min
 	//s.scheduler.Every("2h45m").Do()
-	//s.scheduler.Every("1m").Do()
+	job, err := s.scheduler.Every("1m").Do(func(con *pubsub.Producer) {
+		log.Println(con)
+		err := s.ubisoft.Connect(context.Background(), con)
+		if err != nil {
+			log.Println("Job Error", err)
+		}
+		log.Println("SUCCESS UBI")
+	}, s.kafka)
+	log.Println(job, err)
 	s.scheduler.StartBlocking()
-
+	log.Println("Scheduler Stopped")
 	return nil
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	log.Println(":::::: Shutting Down Server")
-
-	close(s.closeC)
 	for {
 		select {
 		case <-ctx.Done():

@@ -85,6 +85,7 @@ func fetchSessionData(ctx context.Context, client *http.Client, r *http.Request)
 				var us *UbisoftSession
 				err := json.NewDecoder(res.Body).Decode(&us)
 				if err == nil {
+					log.Println("Status Code 200")
 					res.Body.Close()
 					return us
 				}
@@ -119,7 +120,7 @@ func (c *UbisoftConfig) Connect(ctx context.Context, p *pubsub.Producer) error {
 	c.UbisoftSession = sd
 	ke := p.NewMessage(ctx, sd)
 	if ke != nil {
-
+		return ke
 	}
 
 	return nil
