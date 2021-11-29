@@ -30,11 +30,7 @@ func main() {
 func run() (<-chan error, error) {
 	log.Println(":::::: R6 CRON STARTING")
 
-	producer, err := pubsub.NewKafkaConnection(context.Background(), "ubisoft-topic")
-	if err != nil {
-		return nil, err
-	}
-
+	producer := pubsub.NewKafkaWriter("ubisoft-topic")
 	client := ubisoft.CreateConfig()
 	scheduler := gocron.NewScheduler(time.UTC)
 
@@ -59,7 +55,10 @@ func run() (<-chan error, error) {
 		ctxTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
 		defer func() {
-			producer.Producer.Close()
+			err := producer.Close()
+			if err != nil {
+				log.Println("Failed to close Kafka Connection")
+			}
 			scheduler.Stop()
 			client.Stop()
 

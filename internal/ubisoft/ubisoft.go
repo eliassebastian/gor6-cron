@@ -23,7 +23,7 @@ type UbisoftConfig struct {
 	client *http.Client
 	ctx    context.Context
 	cancel context.CancelFunc
-	UbisoftSession
+	*UbisoftSession
 }
 
 type UbisoftSession struct {
@@ -82,10 +82,11 @@ func fetchSessionData(ctx context.Context, client *http.Client, r *http.Request)
 			}
 
 			if res.StatusCode == 200 {
-				var u *UbisoftSession
-				err := json.NewDecoder(res.Body).Decode(&u)
+				var us *UbisoftSession
+				err := json.NewDecoder(res.Body).Decode(&us)
 				if err == nil {
-					return u
+					res.Body.Close()
+					return us
 				}
 			}
 			log.Println("Retrying Session:", i+1)
@@ -109,10 +110,16 @@ func (c *UbisoftConfig) Connect(ctx context.Context, p *pubsub.Producer) error {
 		return err
 	}
 
-	data := fetchSessionData(ctx, c.client, req)
-	if data == nil {
+	sd := fetchSessionData(ctx, c.client, req)
+	if sd == nil {
 		log.Println("Fetch Session Data returned Nil")
 		return errors.New("session fetched returned nil")
+	}
+
+	c.UbisoftSession = sd
+	ke := p.NewMessage(ctx, sd)
+	if ke != nil {
+
 	}
 
 	return nil
