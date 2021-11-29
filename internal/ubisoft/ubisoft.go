@@ -14,13 +14,13 @@ import (
 
 const (
 	SESSIONSURL = "https://public-ubiservices.ubi.com/v3/profiles/sessions"
+	APPID       = "39baebad-39e5-4552-8c25-2c9b919064e2"
 	USERNAME    = "gor6client@gmail.com"
 	PASS        = "GoClientR6!2021"
 )
 
 type UbisoftConfig struct {
 	client *http.Client
-	appId  string
 	ctx    context.Context
 	cancel context.CancelFunc
 	UbisoftSession
@@ -42,11 +42,10 @@ func CreateConfig() *UbisoftConfig {
 		client: &http.Client{
 			Timeout: time.Second * 10,
 		},
-		appId: "39baebad-39e5-4552-8c25-2c9b919064e2",
 	}
 }
 
-func createSessionURL(ctx context.Context, url string, appId string) (*http.Request, error) {
+func createSessionURL(ctx context.Context, url string) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
 	if err != nil {
 		return nil, errors.New("error creating session url")
@@ -54,7 +53,7 @@ func createSessionURL(ctx context.Context, url string, appId string) (*http.Requ
 
 	req.Header = http.Header{
 		"Content-Type":  []string{"application/json"},
-		"Ubi-AppId":     []string{appId},
+		"Ubi-AppId":     []string{APPID},
 		"Authorization": []string{basicToken()},
 		"Connection":    []string{"keep-alive"},
 	}
@@ -105,7 +104,7 @@ func (c *UbisoftConfig) Connect(ctx context.Context, p *pubsub.Producer) error {
 	c.ctx = ctx
 	c.cancel = cancel
 
-	req, err := createSessionURL(ctx, SESSIONSURL, c.appId)
+	req, err := createSessionURL(ctx, SESSIONSURL)
 	if err != nil {
 		return err
 	}
