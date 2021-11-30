@@ -26,10 +26,6 @@ func NewKafkaWriter(topic string) *Producer {
 	}
 }
 
-/*func (p *Producer) Ping(ctx context.Context) {
-
-}*/
-
 func (p *Producer) NewMessage(ctx context.Context, us interface{}) error {
 	b := new(bytes.Buffer)
 	defer b.Reset()
