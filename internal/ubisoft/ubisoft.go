@@ -3,10 +3,10 @@ package ubisoft
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/eliassebastian/gor6-cron/internal/pubsub"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -20,18 +20,18 @@ const (
 )
 
 type UbisoftConfig struct {
-	client *http.Client
-	ctx    context.Context
-	cancel context.CancelFunc
-	*UbisoftSession
+	client  *http.Client
+	ctx     context.Context
+	cancel  context.CancelFunc
+	session []byte
 }
 
-type UbisoftSession struct {
-	SessionExpiry time.Time `json:"expiration"`
-	SessionKey    string    `json:"sessionKey"`
-	SpaceID       string    `json:"spaceId"`
-	SessionTicket string    `json:"ticket"`
-}
+//type UbisoftSession struct {
+//	SessionExpiry time.Time `json:"expiration"`
+//	SessionKey    string    `json:"sessionKey"`
+//	SpaceID       string    `json:"spaceId"`
+//	SessionTicket string    `json:"ticket"`
+//}
 
 func basicToken() string {
 	return fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", USERNAME, PASS))))
@@ -61,7 +61,7 @@ func createSessionURL(ctx context.Context, url string) (*http.Request, error) {
 	return req, nil
 }
 
-func fetchSessionData(ctx context.Context, client *http.Client, r *http.Request) *UbisoftSession {
+func fetchSessionData(ctx context.Context, client *http.Client, r *http.Request) []byte {
 	bs := []time.Duration{
 		5 * time.Second,
 		10 * time.Second,
@@ -82,13 +82,14 @@ func fetchSessionData(ctx context.Context, client *http.Client, r *http.Request)
 			}
 
 			if res.StatusCode == 200 {
-				var us *UbisoftSession
-				err := json.NewDecoder(res.Body).Decode(&us)
-				if err == nil {
-					log.Println("Status Code 200")
+				bs, err := ioutil.ReadAll(res.Body)
+				if err != nil {
+					log.Println("error reading response body", err)
 					res.Body.Close()
-					return us
+					return nil
 				}
+				res.Body.Close()
+				return bs
 			}
 			log.Println("Retrying Session:", i+1)
 			res.Body.Close()
@@ -117,7 +118,7 @@ func (c *UbisoftConfig) Connect(ctx context.Context, p *pubsub.Producer) error {
 		return errors.New("session fetched returned nil")
 	}
 
-	c.UbisoftSession = sd
+	c.session = sd
 	ke := p.NewMessage(ctx, sd)
 	if ke != nil {
 		return ke

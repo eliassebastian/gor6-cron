@@ -1,9 +1,7 @@
 package pubsub
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -26,13 +24,8 @@ func NewKafkaWriter(topic string) *Producer {
 	}
 }
 
-func (p *Producer) NewMessage(ctx context.Context, us interface{}) error {
-	b := new(bytes.Buffer)
-	defer b.Reset()
-
-	gob.NewEncoder(b).Encode(us)
-
-	err := p.WriteMessages(ctx, kafka.Message{Value: b.Bytes()})
+func (p *Producer) NewMessage(ctx context.Context, us []byte) error {
+	err := p.WriteMessages(ctx, kafka.Message{Value: us})
 	if err != nil {
 		return err
 	}
