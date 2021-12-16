@@ -14,7 +14,7 @@ import (
 
 const (
 	SESSIONSURL = "https://public-ubiservices.ubi.com/v3/profiles/sessions"
-	APPID       = "39baebad-39e5-4552-8c25-2c9b919064e2"
+	APPID       = "3587dcbb-7f81-457c-9781-0e3f29f6f56a"
 	USERNAME    = "gor6client@gmail.com"
 	PASS        = "GoClientR6!2021"
 )

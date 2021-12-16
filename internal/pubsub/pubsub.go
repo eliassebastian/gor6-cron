@@ -29,6 +29,5 @@ func (p *Producer) NewMessage(ctx context.Context, us []byte) error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
