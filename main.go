@@ -93,7 +93,7 @@ func (s *Server) ListenAndServe() error {
 	log.Println(":::::: ListenAndServer")
 	//TODO initiate cron job every 2hr45min
 	//s.scheduler.Every("2h45m").Do()
-	job, err := s.scheduler.Every("5m").Do(func(con *pubsub.Producer) {
+	job, err := s.scheduler.Every("10m").Do(func(con *pubsub.Producer) {
 		err := s.ubisoft.Connect(context.Background(), con)
 		if err != nil {
 			log.Println("Job Error", err)
