@@ -1,18 +1,18 @@
 package rabbitmq
 
 import (
-	"github.com/rabbitmq/amqp091-go"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
 )
 
 type RabbitConfig struct {
-	connection *amqp091.Connection
-	channel    *amqp091.Channel
-	queue      *amqp091.Queue
+	connection *amqp.Connection
+	channel    *amqp.Channel
+	queue      *amqp.Queue
 }
 
 func NewConnection() (*RabbitConfig, error) {
-	conn, err := amqp091.Dial("amqp://guest:guest@localhost:5672/")
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (p *RabbitConfig) Produce(b *[]byte) error {
 		p.queue.Name, // routing key
 		false,        // mandatory
 		false,        // immediate
-		amqp091.Publishing{
+		amqp.Publishing{
 			ContentType: "text/plain",
 			Body:        *b,
 		})
