@@ -1,10 +1,9 @@
-package pubsub
+package kafka
 
 import (
 	"context"
-	"time"
-
 	"github.com/segmentio/kafka-go"
+	"time"
 )
 
 type Producer struct {

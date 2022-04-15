@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/eliassebastian/gor6-cron/internal/rabbitmq"
 	"github.com/go-co-op/gocron"
 	"log"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/eliassebastian/gor6-cron/internal/pubsub"
 	"github.com/eliassebastian/gor6-cron/internal/ubisoft"
 )
 
@@ -30,12 +30,18 @@ func main() {
 func run() (<-chan error, error) {
 	log.Println(":::::: R6 CRON STARTING")
 
-	producer := pubsub.NewKafkaWriter("ubisoft-topic")
+	//producer := kafka.NewKafkaWriter("ubisoft-topic")
+	producer, err := rabbitmq.NewConnection()
+	if err != nil {
+		return nil, err
+	}
+
 	client := ubisoft.CreateConfig()
 	scheduler := gocron.NewScheduler(time.UTC)
 
 	srv := &Server{
-		kafka:     producer,
+		//kafka:     producer,
+		rabbitmq:  producer,
 		scheduler: scheduler,
 		ubisoft:   client,
 		doneC:     make(chan struct{}),
@@ -83,7 +89,8 @@ func run() (<-chan error, error) {
 }
 
 type Server struct {
-	kafka     *pubsub.Producer
+	//kafka     *kafka.Producer
+	rabbitmq  *rabbitmq.RabbitConfig
 	scheduler *gocron.Scheduler
 	ubisoft   *ubisoft.UbisoftConfig
 	doneC     chan struct{}
@@ -93,13 +100,13 @@ func (s *Server) ListenAndServe() error {
 	log.Println(":::::: ListenAndServer")
 	//TODO initiate cron job every 2hr45min
 	//s.scheduler.Every("2h45m").Do()
-	job, err := s.scheduler.Every("10m").Do(func(con *pubsub.Producer) {
+	job, err := s.scheduler.Every("10m").Do(func(con *rabbitmq.RabbitConfig) {
 		err := s.ubisoft.Connect(context.Background(), con)
 		if err != nil {
 			log.Println("Job Error", err)
 		}
 		log.Println("SUCCESS UBI")
-	}, s.kafka)
+	}, s.rabbitmq)
 	log.Println(job, err)
 	s.scheduler.StartBlocking()
 	log.Println("Scheduler Stopped")

@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/eliassebastian/gor6-cron/internal/pubsub"
+	"github.com/eliassebastian/gor6-cron/internal/rabbitmq"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -100,7 +100,7 @@ func fetchSessionData(ctx context.Context, client *http.Client, r *http.Request)
 	return nil
 }
 
-func (c *UbisoftConfig) Connect(ctx context.Context, p *pubsub.Producer) error {
+func (c *UbisoftConfig) Connect(ctx context.Context, p *rabbitmq.RabbitConfig) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -119,7 +119,7 @@ func (c *UbisoftConfig) Connect(ctx context.Context, p *pubsub.Producer) error {
 	}
 
 	c.session = sd
-	ke := p.NewMessage(ctx, sd)
+	ke := p.Produce(&sd)
 	if ke != nil {
 		return ke
 	}
